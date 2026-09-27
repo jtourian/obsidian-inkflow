@@ -1,0 +1,10 @@
+{
+	"id": "inkflow",
+	"name": "InkFlow",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Handwriting-first note taking. Write with a stylus, let AI turn it into Markdown/LaTeX, and confirm only what's ambiguous.",
+	"author": "jtourian",
+	"authorUrl": "",
+	"isDesktopOnly": false
+}

@@ -1,0 +1,62 @@
+.inkflow-region {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 8px;
+	margin: 8px 0;
+	background: var(--background-secondary);
+}
+
+.inkflow-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 6px;
+}
+
+.inkflow-canvas-container {
+	background: var(--background-primary);
+	border: 1px dashed var(--background-modifier-border);
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.inkflow-canvas {
+	display: block;
+	cursor: crosshair;
+}
+
+.inkflow-status {
+	color: var(--text-muted);
+	font-size: 0.85em;
+}
+
+.inkflow-confirmation-modal .inkflow-issue-card {
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 10px;
+	margin-bottom: 10px;
+}
+
+.inkflow-confirmation-modal .inkflow-issue-resolved {
+	opacity: 0.5;
+}
+
+.inkflow-confirmation-modal .inkflow-issue-category {
+	font-weight: 600;
+	font-size: 0.8em;
+	text-transform: uppercase;
+	color: var(--text-accent);
+}
+
+.inkflow-confirmation-modal .inkflow-issue-options {
+	display: flex;
+	gap: 6px;
+	margin-top: 6px;
+	flex-wrap: wrap;
+}
+
+.inkflow-modal-footer {
+	margin-top: 12px;
+	display: flex;
+	justify-content: flex-end;
+}
