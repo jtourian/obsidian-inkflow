@@ -14,19 +14,23 @@ export interface InkflowViewHost {
 	settings: InkflowSettings;
 }
 
-const SAVE_DEBOUNCE_MS = 800;
-
 /**
  * Full-page ink view for a note. Strokes are persisted to the note's
- * sidecar (see storage/sidecar.ts); the note's own Markdown body is only
- * touched when the user explicitly converts the page.
+ * sidecar (see storage/sidecar.ts) in real time — every stroke is written
+ * to disk as soon as it's committed, no debounce — so there's no window
+ * where a toggle to Markdown mode can race an unsaved stroke. Writes are
+ * chained onto `saveQueue` so two strokes committed close together don't
+ * race each other as concurrent create/modify calls.
+ *
+ * The note's own Markdown body is only touched when the user explicitly
+ * converts the page.
  */
 export class InkCanvasView extends FileView {
 	private plugin: InkflowViewHost;
 	private canvas: HandwritingCanvas | null = null;
 	private statusEl: HTMLElement | null = null;
 	private convertBtn: HTMLButtonElement | null = null;
-	private saveTimer: number | null = null;
+	private saveQueue: Promise<void> = Promise.resolve();
 
 	constructor(leaf: WorkspaceLeaf, plugin: InkflowViewHost) {
 		super(leaf);
@@ -66,20 +70,19 @@ export class InkCanvasView extends FileView {
 		const page = await loadInkPage(this.app, file, this.plugin.settings.pageWidth, this.plugin.settings.pageHeight);
 
 		this.canvas = new HandwritingCanvas(canvasContainer, page, () => {
-			this.scheduleSave(file);
+			this.queueSave(file);
 		});
 
 		clearBtn.onclick = () => {
 			this.canvas?.clear();
-			this.scheduleSave(file, /* immediate */ true);
+			this.queueSave(file);
 		};
 
 		markdownBtn.onclick = () => {
 			void (async () => {
-				// Flush strokes to the sidecar *before* asking Obsidian to swap
-				// the view type — don't rely on onClose/onUnloadFile firing in
-				// time, since that teardown can race the new view's creation.
-				await this.flushSave(file);
+				// Wait for every queued stroke write to land before asking
+				// Obsidian to swap the view type.
+				await this.saveQueue;
 				await this.leaf.setViewState({ type: "markdown", state: { file: file.path } });
 			})();
 		};
@@ -87,53 +90,42 @@ export class InkCanvasView extends FileView {
 		convertBtn.onclick = () => void this.convert(file);
 	}
 
-	/** Flushes any unsaved strokes immediately. Exposed so callers that are
-	 * about to switch this leaf away from the ink view (e.g. the plugin's
-	 * "Toggle handwriting mode" command) can await it first, rather than
-	 * relying on onClose/onUnloadFile to save in time. */
+	/** Waits for every stroke write queued so far to land on disk. Exposed so
+	 * callers that are about to switch this leaf away from the ink view
+	 * (e.g. the plugin's "Toggle handwriting mode" command) can await it
+	 * first. */
 	async saveNow(): Promise<void> {
-		if (!this.file) return;
-		await this.flushSave(this.file);
+		await this.saveQueue;
 	}
 
-	async onUnloadFile(file: TFile): Promise<void> {
-		await this.flushSave(file);
+	async onUnloadFile(_file: TFile): Promise<void> {
+		await this.saveQueue;
 		this.canvas?.destroy();
 		this.canvas = null;
 	}
 
 	async onClose(): Promise<void> {
-		if (this.file) await this.flushSave(this.file);
+		await this.saveQueue;
 		this.canvas?.destroy();
 		this.canvas = null;
 	}
 
-	private scheduleSave(file: TFile, immediate = false) {
-		if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
-		if (immediate) {
-			this.saveTimer = null;
-			void this.flushSave(file);
-			return;
-		}
-		this.saveTimer = window.setTimeout(() => {
-			this.saveTimer = null;
-			void this.flushSave(file);
-		}, SAVE_DEBOUNCE_MS);
-	}
-
-	private async flushSave(file: TFile): Promise<void> {
-		if (this.saveTimer !== null) {
-			window.clearTimeout(this.saveTimer);
-			this.saveTimer = null;
-		}
+	/** Queues an immediate, serialized write of the current page to the
+	 * sidecar. Chaining onto `saveQueue` (rather than firing independent
+	 * writes) means two strokes committed back-to-back can't race each
+	 * other as concurrent create/modify calls. */
+	private queueSave(file: TFile) {
 		const page = this.canvas?.getPage();
 		if (!page) return;
-		try {
-			await saveInkPage(this.app, file, page);
-		} catch (err) {
-			console.error("inkflow: failed to save ink page", err);
-			new Notice(`inkflow: failed to save handwriting for "${file.basename}" — ${(err as Error).message}`);
-		}
+		this.saveQueue = this.saveQueue.then(async () => {
+			try {
+				await saveInkPage(this.app, file, page);
+				this.statusEl?.setText(`Saved ${new Date().toLocaleTimeString()}`);
+			} catch (err) {
+				console.error("inkflow: failed to save ink page", err);
+				new Notice(`inkflow: failed to save handwriting for "${file.basename}" — ${(err as Error).message}`);
+			}
+		});
 	}
 
 	private async convert(file: TFile): Promise<void> {
