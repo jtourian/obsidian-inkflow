@@ -1,4 +1,4 @@
-import { App, TFile } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import { createEmptyInkPage, InkPage } from "../model/types";
 
 /**
@@ -35,6 +35,7 @@ export async function loadInkPage(app: App, file: TFile, defaultWidth: number, d
 			return JSON.parse(text) as InkPage;
 		} catch (err) {
 			console.error("inkflow: failed to read sidecar, starting with a blank page", err);
+			new Notice("inkflow: couldn't read this note's saved handwriting — starting with a blank page. See console for details.");
 		}
 	}
 	return createEmptyInkPage(defaultWidth, defaultHeight);
@@ -47,8 +48,19 @@ export async function saveInkPage(app: App, file: TFile, page: InkPage): Promise
 	const existing = app.vault.getAbstractFileByPath(path);
 	if (existing instanceof TFile) {
 		await app.vault.modify(existing, text);
-	} else {
+		return;
+	}
+	try {
 		await app.vault.create(path, text);
+	} catch (err) {
+		// Another concurrent save may have just created it — fall back to modify
+		// rather than losing this write.
+		const createdByOther = app.vault.getAbstractFileByPath(path);
+		if (createdByOther instanceof TFile) {
+			await app.vault.modify(createdByOther, text);
+			return;
+		}
+		throw err;
 	}
 }
 

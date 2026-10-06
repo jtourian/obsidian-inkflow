@@ -47,6 +47,9 @@ export class InkCanvasView extends FileView {
 	}
 
 	async onLoadFile(file: TFile): Promise<void> {
+		this.canvas?.destroy();
+		this.canvas = null;
+
 		this.contentEl.empty();
 		this.contentEl.addClass("inkflow-view");
 
@@ -72,10 +75,25 @@ export class InkCanvasView extends FileView {
 		};
 
 		markdownBtn.onclick = () => {
-			void this.leaf.setViewState({ type: "markdown", state: { file: file.path } });
+			void (async () => {
+				// Flush strokes to the sidecar *before* asking Obsidian to swap
+				// the view type — don't rely on onClose/onUnloadFile firing in
+				// time, since that teardown can race the new view's creation.
+				await this.flushSave(file);
+				await this.leaf.setViewState({ type: "markdown", state: { file: file.path } });
+			})();
 		};
 
 		convertBtn.onclick = () => void this.convert(file);
+	}
+
+	/** Flushes any unsaved strokes immediately. Exposed so callers that are
+	 * about to switch this leaf away from the ink view (e.g. the plugin's
+	 * "Toggle handwriting mode" command) can await it first, rather than
+	 * relying on onClose/onUnloadFile to save in time. */
+	async saveNow(): Promise<void> {
+		if (!this.file) return;
+		await this.flushSave(this.file);
 	}
 
 	async onUnloadFile(file: TFile): Promise<void> {
@@ -114,6 +132,7 @@ export class InkCanvasView extends FileView {
 			await saveInkPage(this.app, file, page);
 		} catch (err) {
 			console.error("inkflow: failed to save ink page", err);
+			new Notice(`inkflow: failed to save handwriting for "${file.basename}" — ${(err as Error).message}`);
 		}
 	}
 

@@ -58,7 +58,10 @@ export default class InkflowPlugin extends Plugin {
 	private async toggleHandwritingMode(file: TFile) {
 		const leaf = this.app.workspace.getActiveViewOfType(FileView)?.leaf ?? this.app.workspace.getLeaf(false);
 
-		if (leaf.view.getViewType() === INKFLOW_VIEW_TYPE) {
+		if (leaf.view instanceof InkCanvasView) {
+			// Flush strokes to the sidecar before asking Obsidian to swap the
+			// view type — don't rely on onClose/onUnloadFile saving in time.
+			await leaf.view.saveNow();
 			await leaf.setViewState({ type: "markdown", state: { file: file.path } });
 			return;
 		}
