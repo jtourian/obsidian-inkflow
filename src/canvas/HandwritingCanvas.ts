@@ -1,8 +1,8 @@
-import { HandwritingRegion, Stroke } from "../model/types";
+import { InkPage, Stroke } from "../model/types";
 import { PointerInputAdapter } from "../input/PointerInputAdapter";
 
 /**
- * Plain Canvas2D renderer for a single handwriting region. Deliberately
+ * Plain Canvas2D renderer for a note's full-page ink layer. Deliberately
  * has no dependency on a third-party canvas framework so we keep full
  * control over stylus-specific behavior (see Ink's tldraw-coupling risk).
  */
@@ -11,12 +11,12 @@ export class HandwritingCanvas {
 	private canvasEl: HTMLCanvasElement;
 	private ctx: CanvasRenderingContext2D;
 	private adapter: PointerInputAdapter;
-	private region: HandwritingRegion;
-	private onChange: (region: HandwritingRegion) => void;
+	private region: InkPage;
+	private onChange: (region: InkPage) => void;
 	private dpr = window.devicePixelRatio || 1;
 	private activeStroke: Stroke | null = null;
 
-	constructor(containerEl: HTMLElement, region: HandwritingRegion, onChange: (region: HandwritingRegion) => void) {
+	constructor(containerEl: HTMLElement, region: InkPage, onChange: (region: InkPage) => void) {
 		this.containerEl = containerEl;
 		this.region = region;
 		this.onChange = onChange;
@@ -104,6 +104,14 @@ export class HandwritingCanvas {
 		this.region.updatedAt = Date.now();
 		this.redraw();
 		this.onChange(this.region);
+	}
+
+	getPage(): InkPage {
+		return this.region;
+	}
+
+	isEmpty(): boolean {
+		return this.region.strokes.length === 0;
 	}
 
 	destroy() {

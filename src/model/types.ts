@@ -1,8 +1,9 @@
 /**
- * Core data model for a handwriting region.
+ * Core data model for InkFlow.
  *
- * A region's strokes are the source of truth and are never deleted by
- * recognition. `recognizedMarkdown` is a derived, replaceable projection.
+ * Strokes are the source of truth and are never deleted by recognition.
+ * The recognized Markdown lives in the note's own body; it is a derived,
+ * replaceable projection, not stored alongside the strokes.
  */
 
 export interface StrokePoint {
@@ -11,7 +12,7 @@ export interface StrokePoint {
 	pressure: number;
 	tiltX?: number;
 	tiltY?: number;
-	t: number; // ms since region creation
+	t: number; // ms since page creation
 }
 
 export interface Stroke {
@@ -53,35 +54,27 @@ export interface RecognitionResult {
 	raw?: unknown;
 }
 
-export interface RegionRevision {
-	timestamp: number;
-	markdown: string;
-	note?: string;
-}
-
-export interface HandwritingRegion {
-	id: string;
+/**
+ * The full-page ink layer for a single note, persisted in a sidecar file
+ * (see storage/sidecar.ts) rather than inside the note's Markdown source.
+ */
+export interface InkPage {
+	version: 1;
 	createdAt: number;
 	updatedAt: number;
 	width: number;
 	height: number;
 	strokes: Stroke[];
-	recognizedMarkdown: string | null;
-	segments: RecognitionSegment[];
-	revisionHistory: RegionRevision[];
 }
 
-export function createEmptyRegion(id: string, width: number, height: number): HandwritingRegion {
+export function createEmptyInkPage(width: number, height: number): InkPage {
 	const now = Date.now();
 	return {
-		id,
+		version: 1,
 		createdAt: now,
 		updatedAt: now,
 		width,
 		height,
 		strokes: [],
-		recognizedMarkdown: null,
-		segments: [],
-		revisionHistory: [],
 	};
 }

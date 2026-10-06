@@ -59,7 +59,7 @@ export class ConfirmationModal extends Modal {
 		}
 
 		const footer = contentEl.createDiv({ cls: "inkflow-modal-footer" });
-		const doneBtn = footer.createEl("button", { text: "Apply and insert", cls: "mod-cta" });
+		const doneBtn = footer.createEl("button", { text: "Apply and convert", cls: "mod-cta" });
 		doneBtn.onclick = () => {
 			this.onResolve(this.issues);
 			this.close();

@@ -45,29 +45,34 @@ export class InkflowSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
-			.setName("Default canvas height (px)")
-			.setDesc("Height of a newly inserted handwriting region.")
+			.setName("Page width (px)")
+			.setDesc("Virtual size of a new note's ink canvas. The page scrolls if you write past it.")
 			.addText((text) =>
 				text
-					.setPlaceholder("400")
-					.setValue(String(this.plugin.settings.canvasHeight))
+					.setPlaceholder("1400")
+					.setValue(String(this.plugin.settings.pageWidth))
 					.onChange(async (value) => {
 						const n = Number(value);
 						if (!Number.isNaN(n) && n > 0) {
-							this.plugin.settings.canvasHeight = n;
+							this.plugin.settings.pageWidth = n;
 							await this.plugin.saveSettings();
 						}
 					}),
 			);
 
 		new Setting(containerEl)
-			.setName("Force uncompressed markers (debug)")
-			.setDesc("Skip gzip compression when embedding handwriting data in notes. Useful for testing the fallback path used on runtimes without CompressionStream support.")
-			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.forceUncompressedMarkers).onChange(async (value) => {
-					this.plugin.settings.forceUncompressedMarkers = value;
-					await this.plugin.saveSettings();
-				}),
+			.setName("Page height (px)")
+			.addText((text) =>
+				text
+					.setPlaceholder("1800")
+					.setValue(String(this.plugin.settings.pageHeight))
+					.onChange(async (value) => {
+						const n = Number(value);
+						if (!Number.isNaN(n) && n > 0) {
+							this.plugin.settings.pageHeight = n;
+							await this.plugin.saveSettings();
+						}
+					}),
 			);
 	}
 }
